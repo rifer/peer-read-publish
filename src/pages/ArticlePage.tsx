@@ -7,78 +7,165 @@ import { Star, Calendar, User, MessageSquare } from "lucide-react";
 import ReviewCard from "@/components/ReviewCard";
 import Header from "@/components/Header";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data - in real app this would come from API
-const mockArticle = {
-  id: "1",
-  title: "Novel Approaches to Quantum Computing Error Correction",
-  authors: ["Dr. Sarah Johnson", "Prof. Michael Chen", "Dr. Alex Rodriguez"],
-  abstract: "This paper presents innovative methods for quantum error correction using topological quantum codes. Our approach demonstrates a 40% improvement in error correction efficiency compared to traditional surface codes.",
-  subject: "Quantum Physics",
-  publishedDate: "2024-01-15",
-  status: 'published' as const,
-  reviewCount: 3,
-  views: 1250,
-  content: `
-    ## Introduction
-    
-    Quantum computing represents one of the most promising frontiers in computational science. However, quantum systems are inherently fragile and susceptible to various forms of noise and decoherence. This paper addresses the critical challenge of quantum error correction through novel topological approaches.
-    
-    ## Methodology
-    
-    Our research employs a combination of theoretical analysis and experimental validation using superconducting quantum processors. We developed a new class of topological quantum codes that leverage the geometric properties of quantum states to provide enhanced error correction capabilities.
-    
-    ## Results
-    
-    The experimental results demonstrate significant improvements in error correction efficiency:
-    - 40% reduction in logical error rates
-    - 25% improvement in coherence times
-    - Scalable architecture supporting up to 100 qubits
-    
-    ## Conclusion
-    
-    Our findings suggest that topological quantum error correction could be a key enabler for practical quantum computing applications. Future work will focus on scaling these methods to larger quantum systems.
-  `
-};
-
-const mockReviews = [
-  {
-    id: "1",
-    reviewer: "Dr. Emily Watson",
-    rating: 5,
-    recommendation: 'accept' as const,
-    content: "This is an excellent contribution to the field of quantum error correction. The theoretical framework is sound, and the experimental validation is comprehensive. The 40% improvement in error correction efficiency is particularly impressive and could have significant implications for practical quantum computing.",
-    date: "2024-01-10",
-    helpful: 12
-  },
-  {
-    id: "2",
-    reviewer: "Prof. David Kim",
-    rating: 4,
-    recommendation: 'minor-revisions' as const,
-    content: "The paper presents solid work with good experimental results. However, I suggest the authors provide more detailed analysis of the scalability limitations and compare their approach with recent developments in surface code implementations. The methodology section could benefit from additional clarity regarding the experimental setup.",
-    date: "2024-01-08",
-    helpful: 8
-  },
-  {
-    id: "3",
-    reviewer: "Dr. Maria Gonzalez",
-    rating: 5,
-    recommendation: 'accept' as const,
-    content: "Outstanding research that advances our understanding of topological quantum error correction. The paper is well-written, the experiments are convincing, and the results are significant. This work will likely become a reference in the field.",
-    date: "2024-01-12",
-    helpful: 15
-  }
-];
+// Mock data removal - now using real data from database
 
 const ArticlePage = () => {
   const { id } = useParams();
   const { user, hasRole } = useAuth();
+  const { toast } = useToast();
+  const [article, setArticle] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [newReview, setNewReview] = useState("");
   const [rating, setRating] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   const canReview = user && hasRole('reviewer');
+
+  // Fetch article and reviews
+  useEffect(() => {
+    const fetchArticleData = async () => {
+      if (!id) return;
+      
+      try {
+        // Fetch article
+        const { data: articleData, error: articleError } = await supabase
+          .from('articles')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (articleError) {
+          console.error('Error fetching article:', articleError);
+          toast({
+            title: "Error",
+            description: "Failed to load article",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setArticle(articleData);
+
+        // Fetch reviews with reviewer profile data
+        const { data: reviewsData, error: reviewsError } = await supabase
+          .from('reviews')
+          .select(`
+            *,
+            reviewer:profiles!reviews_reviewer_id_fkey(full_name)
+          `)
+          .eq('article_id', id)
+          .order('created_at', { ascending: false });
+
+        if (reviewsError) {
+          console.error('Error fetching reviews:', reviewsError);
+        } else {
+          setReviews(reviewsData || []);
+        }
+      } catch (error) {
+        console.error('Unexpected error:', error);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchArticleData();
+  }, [id, toast]);
+
+  const handleSubmitReview = async () => {
+    if (!user || !article || !newReview.trim() || rating === 0) {
+      toast({
+        title: "Error",
+        description: "Please provide both a rating and review content",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await supabase
+        .from('reviews')
+        .insert({
+          article_id: article.id,
+          reviewer_id: user.id,
+          rating,
+          content: newReview.trim(),
+        });
+
+      if (error) {
+        console.error('Error submitting review:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to submit review",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Reset form
+      setNewReview("");
+      setRating(0);
+      
+      // Refresh reviews
+      const { data: reviewsData } = await supabase
+        .from('reviews')
+        .select(`
+          *,
+          reviewer:profiles!reviews_reviewer_id_fkey(full_name)
+        `)
+        .eq('article_id', id)
+        .order('created_at', { ascending: false });
+      
+      setReviews(reviewsData || []);
+
+      toast({
+        title: "Success",
+        description: "Review submitted successfully!",
+      });
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="text-center">Loading article...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="text-center">Article not found</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -87,28 +174,30 @@ const ArticlePage = () => {
         {/* Article Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-4 mb-4">
-            <Badge className="bg-accent text-accent-foreground">Published</Badge>
-            <Badge variant="outline">{mockArticle.subject}</Badge>
+            <Badge className="bg-accent text-accent-foreground">
+              {article.status.charAt(0).toUpperCase() + article.status.slice(1).replace('_', ' ')}
+            </Badge>
+            <Badge variant="outline">{article.subject}</Badge>
           </div>
           
           <h1 className="text-3xl font-bold text-foreground mb-4 leading-tight">
-            {mockArticle.title}
+            {article.title}
           </h1>
           
           <div className="flex items-center space-x-6 text-muted-foreground mb-4">
             <div className="flex items-center space-x-2">
               <User className="h-4 w-4" />
-              <span>{mockArticle.authors.join(", ")}</span>
+              <span>{Array.isArray(article.authors) ? article.authors.join(", ") : "Unknown Authors"}</span>
             </div>
             <div className="flex items-center space-x-2">
               <Calendar className="h-4 w-4" />
-              <span>{mockArticle.publishedDate}</span>
+              <span>{article.published_date}</span>
             </div>
           </div>
           
           <div className="bg-secondary p-4 rounded-lg">
             <h3 className="font-semibold text-foreground mb-2">Abstract</h3>
-            <p className="text-foreground leading-relaxed">{mockArticle.abstract}</p>
+            <p className="text-foreground leading-relaxed">{article.abstract}</p>
           </div>
         </div>
 
@@ -116,7 +205,7 @@ const ArticlePage = () => {
         <Card className="mb-8">
           <CardContent className="p-8">
             <div className="prose prose-gray max-w-none">
-              {mockArticle.content.split('\n').map((paragraph, index) => {
+              {article.content.split('\n').map((paragraph, index) => {
                 if (paragraph.trim().startsWith('##')) {
                   return (
                     <h2 key={index} className="text-xl font-semibold text-foreground mt-6 mb-3">
@@ -145,12 +234,28 @@ const ArticlePage = () => {
         <div className="mb-8">
           <div className="flex items-center space-x-2 mb-6">
             <MessageSquare className="h-5 w-5 text-primary" />
-            <h2 className="text-2xl font-bold text-foreground">Peer Reviews ({mockReviews.length})</h2>
+            <h2 className="text-2xl font-bold text-foreground">Peer Reviews ({reviews.length})</h2>
           </div>
           
-          {mockReviews.map((review) => (
-            <ReviewCard key={review.id} review={review} />
-          ))}
+          {reviews.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center text-muted-foreground">
+                No reviews yet. Be the first to review this article!
+              </CardContent>
+            </Card>
+          ) : (
+            reviews.map((review) => (
+              <ReviewCard 
+                key={review.id} 
+                review={{
+                  ...review,
+                  reviewer: review.reviewer?.full_name || 'Anonymous Reviewer',
+                  date: new Date(review.created_at).toLocaleDateString(),
+                  helpful: 0 // This would need to be implemented separately
+                }} 
+              />
+            ))
+          )}
         </div>
 
         {/* Submit Review Section - Only for reviewers */}
@@ -195,8 +300,12 @@ const ArticlePage = () => {
                   />
                 </div>
                 
-                <Button className="bg-gradient-primary hover:bg-primary-hover">
-                  Submit Review
+                <Button 
+                  onClick={handleSubmitReview}
+                  disabled={isSubmitting || !newReview.trim() || rating === 0}
+                  className="bg-gradient-primary hover:bg-primary-hover"
+                >
+                  {isSubmitting ? 'Submitting...' : 'Submit Review'}
                 </Button>
               </div>
             </CardContent>

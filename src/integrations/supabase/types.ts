@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      articles: {
+        Row: {
+          abstract: string
+          authors: Json
+          content: string
+          created_at: string
+          id: string
+          published_date: string | null
+          status: Database["public"]["Enums"]["article_status"]
+          subject: string
+          submitter_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          abstract: string
+          authors?: Json
+          content: string
+          created_at?: string
+          id?: string
+          published_date?: string | null
+          status?: Database["public"]["Enums"]["article_status"]
+          subject: string
+          submitter_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          abstract?: string
+          authors?: Json
+          content?: string
+          created_at?: string
+          id?: string
+          published_date?: string | null
+          status?: Database["public"]["Enums"]["article_status"]
+          subject?: string
+          submitter_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -40,6 +82,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      reviews: {
+        Row: {
+          article_id: string
+          content: string
+          created_at: string
+          id: string
+          rating: number
+          recommendation:
+            | Database["public"]["Enums"]["review_recommendation"]
+            | null
+          reviewer_id: string
+          updated_at: string
+        }
+        Insert: {
+          article_id: string
+          content: string
+          created_at?: string
+          id?: string
+          rating: number
+          recommendation?:
+            | Database["public"]["Enums"]["review_recommendation"]
+            | null
+          reviewer_id: string
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          recommendation?:
+            | Database["public"]["Enums"]["review_recommendation"]
+            | null
+          reviewer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -77,6 +166,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "reviewer" | "writer"
+      article_status: "draft" | "under_review" | "published" | "rejected"
+      review_recommendation:
+        | "accept"
+        | "minor_revisions"
+        | "major_revisions"
+        | "reject"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -205,6 +300,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "reviewer", "writer"],
+      article_status: ["draft", "under_review", "published", "rejected"],
+      review_recommendation: [
+        "accept",
+        "minor_revisions",
+        "major_revisions",
+        "reject",
+      ],
     },
   },
 } as const
