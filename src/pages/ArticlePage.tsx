@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Star, Calendar, User, MessageSquare } from "lucide-react";
 import ReviewCard from "@/components/ReviewCard";
+import Header from "@/components/Header";
+import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 
 // Mock data - in real app this would come from API
@@ -72,11 +74,15 @@ const mockReviews = [
 
 const ArticlePage = () => {
   const { id } = useParams();
+  const { user, hasRole } = useAuth();
   const [newReview, setNewReview] = useState("");
   const [rating, setRating] = useState(0);
+  
+  const canReview = user && hasRole('reviewer');
 
   return (
     <div className="min-h-screen bg-background">
+      <Header />
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Article Header */}
         <div className="mb-8">
@@ -147,53 +153,55 @@ const ArticlePage = () => {
           ))}
         </div>
 
-        {/* Submit Review Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <MessageSquare className="h-5 w-5" />
-              <span>Submit Your Review</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Rating
-                </label>
-                <div className="flex space-x-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`h-6 w-6 cursor-pointer ${
-                        star <= rating
-                          ? 'text-yellow-500 fill-current'
-                          : 'text-muted-foreground'
-                      }`}
-                      onClick={() => setRating(star)}
-                    />
-                  ))}
+        {/* Submit Review Section - Only for reviewers */}
+        {canReview && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <MessageSquare className="h-5 w-5" />
+                <span>Submit Your Review</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Rating
+                  </label>
+                  <div className="flex space-x-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`h-6 w-6 cursor-pointer ${
+                          star <= rating
+                            ? 'text-yellow-500 fill-current'
+                            : 'text-muted-foreground'
+                        }`}
+                        onClick={() => setRating(star)}
+                      />
+                    ))}
+                  </div>
                 </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Review Content
+                  </label>
+                  <Textarea
+                    placeholder="Share your thoughts on this article's methodology, results, and contribution to the field..."
+                    className="min-h-[120px]"
+                    value={newReview}
+                    onChange={(e) => setNewReview(e.target.value)}
+                  />
+                </div>
+                
+                <Button className="bg-gradient-primary hover:bg-primary-hover">
+                  Submit Review
+                </Button>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Review Content
-                </label>
-                <Textarea
-                  placeholder="Share your thoughts on this article's methodology, results, and contribution to the field..."
-                  className="min-h-[120px]"
-                  value={newReview}
-                  onChange={(e) => setNewReview(e.target.value)}
-                />
-              </div>
-              
-              <Button className="bg-gradient-primary hover:bg-primary-hover">
-                Submit Review
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
