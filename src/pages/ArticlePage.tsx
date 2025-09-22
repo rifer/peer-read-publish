@@ -30,6 +30,7 @@ const ArticlePage = () => {
   const [citations, setCitations] = useState<any[]>([]);
   const [showTooltip, setShowTooltip] = useState(false);
   const [highlightedCitationId, setHighlightedCitationId] = useState<string>();
+  const [existingReviewId, setExistingReviewId] = useState<string | null>(null);
   
   const canReview = user && hasRole('reviewer');
 
@@ -114,7 +115,36 @@ const ArticlePage = () => {
         if (reviewsError) {
           console.error('Error fetching reviews:', reviewsError);
         } else {
+          console.log('Fetched reviews:', reviewsData);
           setReviews(reviewsData || []);
+        }
+
+        // Check if current user has already reviewed this article
+        if (user) {
+          const { data: existingReview } = await supabase
+            .from('reviews')
+            .select('*')
+            .eq('article_id', id)
+            .eq('reviewer_id', user.id)
+            .maybeSingle();
+          
+          if (existingReview) {
+            console.log('Found existing review:', existingReview);
+            setExistingReviewId(existingReview.id);
+            setNewReview(existingReview.content);
+            setRating(existingReview.rating);
+            
+            // Fetch existing citations for this review
+            const { data: existingCitations } = await supabase
+              .from('review_citations')
+              .select('*')
+              .eq('review_id', existingReview.id);
+            
+            if (existingCitations) {
+              console.log('Found existing citations:', existingCitations);
+              setCitations(existingCitations);
+            }
+          }
         }
       } catch (error) {
         console.error('Unexpected error:', error);
@@ -129,7 +159,7 @@ const ArticlePage = () => {
     };
 
     fetchArticleData();
-  }, [id, toast]);
+  }, [id, toast, user]);
 
   const handleSubmitReview = async () => {
     if (!user || !article || !newReview.trim() || rating === 0) {
@@ -144,26 +174,60 @@ const ArticlePage = () => {
     setIsSubmitting(true);
 
     try {
-      // Insert the review first
-      const { data: reviewData, error: reviewError } = await supabase
-        .from('reviews')
-        .insert({
-          article_id: article.id,
-          reviewer_id: user.id,
-          rating,
-          content: newReview.trim(),
-        })
-        .select()
-        .single();
+      let reviewData;
+      
+      if (existingReviewId) {
+        // Update existing review
+        const { data, error: reviewError } = await supabase
+          .from('reviews')
+          .update({
+            rating,
+            content: newReview.trim(),
+          })
+          .eq('id', existingReviewId)
+          .select()
+          .single();
 
-      if (reviewError) {
-        console.error('Error submitting review:', reviewError);
-        toast({
-          title: "Error",
-          description: reviewError.message || "Failed to submit review",
-          variant: "destructive",
-        });
-        return;
+        if (reviewError) {
+          console.error('Error updating review:', reviewError);
+          toast({
+            title: "Error",
+            description: reviewError.message || "Failed to update review",
+            variant: "destructive",
+          });
+          return;
+        }
+        reviewData = data;
+
+        // Delete existing citations and insert new ones
+        await supabase
+          .from('review_citations')
+          .delete()
+          .eq('review_id', existingReviewId);
+      } else {
+        // Insert new review
+        const { data, error: reviewError } = await supabase
+          .from('reviews')
+          .insert({
+            article_id: article.id,
+            reviewer_id: user.id,
+            rating,
+            content: newReview.trim(),
+          })
+          .select()
+          .single();
+
+        if (reviewError) {
+          console.error('Error submitting review:', reviewError);
+          toast({
+            title: "Error",
+            description: reviewError.message || "Failed to submit review",
+            variant: "destructive",
+          });
+          return;
+        }
+        reviewData = data;
+        setExistingReviewId(reviewData.id);
       }
 
       // Insert citations if any
@@ -184,7 +248,6 @@ const ArticlePage = () => {
 
         if (citationsError) {
           console.error('Error submitting citations:', citationsError);
-          // Still show success for the review, but mention citation issue
           toast({
             title: "Review submitted",
             description: "Review submitted successfully, but there was an issue with citations.",
@@ -192,13 +255,8 @@ const ArticlePage = () => {
           });
         }
       }
-
-      // Reset form
-      setNewReview("");
-      setRating(0);
-      setCitations([]);
       
-      // Refresh reviews
+      // Refresh reviews to show the updated data
       const { data: reviewsData } = await supabase
         .from('reviews')
         .select(`
@@ -208,16 +266,17 @@ const ArticlePage = () => {
         .eq('article_id', id)
         .order('created_at', { ascending: false });
       
+      console.log('Refreshed reviews after submission:', reviewsData);
       setReviews(reviewsData || []);
 
       toast({
         title: "Success",
-        description: "Review submitted successfully!",
+        description: existingReviewId ? "Review updated successfully!" : "Review submitted successfully!",
       });
     } catch (error) {
       console.error('Unexpected error:', error);
       toast({
-        title: "Error",
+        title: "Error",  
         description: "An unexpected error occurred",
         variant: "destructive",
       });
@@ -406,6 +465,12 @@ const ArticlePage = () => {
                 {canReview && (
                   <div className="text-xs text-muted-foreground bg-secondary p-2 rounded">
                     💡 Tip: Select text in the article above to add specific citations to your review.
+                    {existingReviewId && (
+                      <>
+                        <br />
+                        ✏️ You are editing your existing review.
+                      </>
+                    )}
                   </div>
                 )}
                 
@@ -414,7 +479,10 @@ const ArticlePage = () => {
                   disabled={isSubmitting || !newReview.trim() || rating === 0}
                   className="bg-gradient-primary hover:bg-primary-hover"
                 >
-                  {isSubmitting ? 'Submitting...' : 'Submit Review'}
+                  {isSubmitting 
+                    ? (existingReviewId ? 'Updating...' : 'Submitting...') 
+                    : (existingReviewId ? 'Update Review' : 'Submit Review')
+                  }
                 </Button>
               </div>
             </CardContent>
