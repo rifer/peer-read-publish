@@ -10,6 +10,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useTextSelection } from "@/hooks/useTextSelection";
+import { TextSelectionTooltip } from "@/components/TextSelectionTooltip";
+import { CitationsList } from "@/components/CitationsList";
+import { HighlightedText } from "@/components/HighlightedText";
 
 // Mock data removal - now using real data from database
 
@@ -23,9 +27,55 @@ const ArticlePage = () => {
   const [rating, setRating] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [citations, setCitations] = useState<any[]>([]);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [highlightedCitationId, setHighlightedCitationId] = useState<string>();
   
   const canReview = user && hasRole('reviewer');
 
+  const { containerRef, currentSelection, clearSelection } = useTextSelection({
+    enableSelection: canReview,
+    onSelectionMade: (selection) => {
+      if (canReview) {
+        setShowTooltip(true);
+      }
+    },
+  });
+
+  const handleAddCitation = async (note: string) => {
+    if (!currentSelection || !user) return;
+
+    const newCitation = {
+      selected_text: currentSelection.text,
+      start_offset: currentSelection.startOffset,
+      end_offset: currentSelection.endOffset,
+      context_before: currentSelection.contextBefore,
+      context_after: currentSelection.contextAfter,
+      note,
+    };
+
+    setCitations(prev => [...prev, { ...newCitation, id: Date.now().toString() }]);
+    setShowTooltip(false);
+    clearSelection();
+
+    toast({
+      title: "Citation added",
+      description: "Your citation has been added to your review.",
+    });
+  };
+
+  const handleDeleteCitation = (citationId: string) => {
+    setCitations(prev => prev.filter(c => c.id !== citationId));
+    toast({
+      title: "Citation removed",
+      description: "Citation has been removed from your review.",
+    });
+  };
+
+  const handleHighlightCitation = (citation: any) => {
+    setHighlightedCitationId(citation.id);
+    setTimeout(() => setHighlightedCitationId(undefined), 3000);
+  };
   // Fetch article and reviews
   useEffect(() => {
     const fetchArticleData = async () => {
@@ -94,28 +144,59 @@ const ArticlePage = () => {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase
+      // Insert the review first
+      const { data: reviewData, error: reviewError } = await supabase
         .from('reviews')
         .insert({
           article_id: article.id,
           reviewer_id: user.id,
           rating,
           content: newReview.trim(),
-        });
+        })
+        .select()
+        .single();
 
-      if (error) {
-        console.error('Error submitting review:', error);
+      if (reviewError) {
+        console.error('Error submitting review:', reviewError);
         toast({
           title: "Error",
-          description: error.message || "Failed to submit review",
+          description: reviewError.message || "Failed to submit review",
           variant: "destructive",
         });
         return;
       }
 
+      // Insert citations if any
+      if (citations.length > 0) {
+        const citationsToInsert = citations.map(citation => ({
+          review_id: reviewData.id,
+          selected_text: citation.selected_text,
+          start_offset: citation.start_offset,
+          end_offset: citation.end_offset,
+          context_before: citation.context_before,
+          context_after: citation.context_after,
+          note: citation.note,
+        }));
+
+        const { error: citationsError } = await supabase
+          .from('review_citations')
+          .insert(citationsToInsert);
+
+        if (citationsError) {
+          console.error('Error submitting citations:', citationsError);
+          // Still show success for the review, but mention citation issue
+          toast({
+            title: "Review submitted",
+            description: "Review submitted successfully, but there was an issue with citations.",
+            variant: "destructive",
+          });
+        }
+      }
+
       // Reset form
       setNewReview("");
       setRating(0);
+      setCitations([]);
       
       // Refresh reviews
       const { data: reviewsData } = await supabase
@@ -204,28 +285,39 @@ const ArticlePage = () => {
         {/* Article Content */}
         <Card className="mb-8">
           <CardContent className="p-8">
-            <div className="prose prose-gray max-w-none">
-              {article.content.split('\n').map((paragraph, index) => {
-                if (paragraph.trim().startsWith('##')) {
-                  return (
-                    <h2 key={index} className="text-xl font-semibold text-foreground mt-6 mb-3">
-                      {paragraph.replace('##', '').trim()}
-                    </h2>
-                  );
-                }
-                if (paragraph.trim().startsWith('-')) {
-                  return (
-                    <li key={index} className="text-foreground ml-4">
-                      {paragraph.replace('-', '').trim()}
-                    </li>
-                  );
-                }
-                return paragraph.trim() ? (
-                  <p key={index} className="text-foreground mb-4 leading-relaxed">
-                    {paragraph.trim()}
-                  </p>
-                ) : null;
-              })}
+            <div ref={containerRef}>
+              {canReview ? (
+                <HighlightedText
+                  content={article.content}
+                  citations={[]} // For now, we'll show existing citations later
+                  highlightedCitationId={highlightedCitationId}
+                  onCitationClick={handleHighlightCitation}
+                />
+              ) : (
+                <div className="prose prose-gray max-w-none">
+                  {article.content.split('\n').map((paragraph, index) => {
+                    if (paragraph.trim().startsWith('##')) {
+                      return (
+                        <h2 key={index} className="text-xl font-semibold text-foreground mt-6 mb-3">
+                          {paragraph.replace('##', '').trim()}
+                        </h2>
+                      );
+                    }
+                    if (paragraph.trim().startsWith('-')) {
+                      return (
+                        <li key={index} className="text-foreground ml-4">
+                          {paragraph.replace('-', '').trim()}
+                        </li>
+                      );
+                    }
+                    return paragraph.trim() ? (
+                      <p key={index} className="text-foreground mb-4 leading-relaxed">
+                        {paragraph.trim()}
+                      </p>
+                    ) : null;
+                  })}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -287,6 +379,17 @@ const ArticlePage = () => {
                     ))}
                   </div>
                 </div>
+
+                {citations.length > 0 && (
+                  <div>
+                    <CitationsList
+                      citations={citations}
+                      onDeleteCitation={handleDeleteCitation}
+                      onHighlightCitation={handleHighlightCitation}
+                      canEdit={true}
+                    />
+                  </div>
+                )}
                 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
@@ -299,6 +402,12 @@ const ArticlePage = () => {
                     onChange={(e) => setNewReview(e.target.value)}
                   />
                 </div>
+
+                {canReview && (
+                  <div className="text-xs text-muted-foreground bg-secondary p-2 rounded">
+                    💡 Tip: Select text in the article above to add specific citations to your review.
+                  </div>
+                )}
                 
                 <Button 
                   onClick={handleSubmitReview}
@@ -310,6 +419,19 @@ const ArticlePage = () => {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Text Selection Tooltip */}
+        {showTooltip && currentSelection && (
+          <TextSelectionTooltip
+            selection={currentSelection}
+            onAddCitation={handleAddCitation}
+            onCancel={() => {
+              setShowTooltip(false);
+              clearSelection();
+            }}
+            isVisible={showTooltip}
+          />
         )}
       </div>
     </div>

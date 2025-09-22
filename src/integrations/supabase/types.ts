@@ -83,6 +83,53 @@ export type Database = {
         }
         Relationships: []
       }
+      review_citations: {
+        Row: {
+          context_after: string | null
+          context_before: string | null
+          created_at: string
+          end_offset: number
+          id: string
+          note: string
+          review_id: string
+          selected_text: string
+          start_offset: number
+          updated_at: string
+        }
+        Insert: {
+          context_after?: string | null
+          context_before?: string | null
+          created_at?: string
+          end_offset: number
+          id?: string
+          note: string
+          review_id: string
+          selected_text: string
+          start_offset: number
+          updated_at?: string
+        }
+        Update: {
+          context_after?: string | null
+          context_before?: string | null
+          created_at?: string
+          end_offset?: number
+          id?: string
+          note?: string
+          review_id?: string
+          selected_text?: string
+          start_offset?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_citations_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           article_id: string

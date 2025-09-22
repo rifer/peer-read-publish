@@ -1,6 +1,9 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Star, ThumbsUp, ThumbsDown, Calendar } from "lucide-react";
+import { Star, ThumbsUp, Calendar } from "lucide-react";
+import { CitationsList } from "@/components/CitationsList";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Review {
   id: string;
@@ -17,6 +20,32 @@ interface ReviewCardProps {
 }
 
 const ReviewCard = ({ review }: ReviewCardProps) => {
+  const [citations, setCitations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCitations = async () => {
+      if (!review.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('review_citations')
+          .select('*')
+          .eq('review_id', review.id)
+          .order('start_offset', { ascending: true });
+
+        if (!error && data) {
+          setCitations(data);
+        }
+      } catch (error) {
+        console.error('Error fetching citations:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCitations();
+  }, [review.id]);
   const getRecommendationColor = (recommendation: Review['recommendation']) => {
     switch (recommendation) {
       case 'accept': return 'bg-accent text-accent-foreground';
@@ -70,6 +99,15 @@ const ReviewCard = ({ review }: ReviewCardProps) => {
         <p className="text-sm text-foreground mb-4 leading-relaxed">
           {review.content}
         </p>
+        
+        {!loading && citations.length > 0 && (
+          <div className="mb-4">
+            <CitationsList
+              citations={citations}
+              canEdit={false}
+            />
+          </div>
+        )}
         
         <div className="flex items-center space-x-4 text-xs text-muted-foreground">
           <div className="flex items-center space-x-1">
