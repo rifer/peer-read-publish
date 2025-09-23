@@ -37,8 +37,15 @@ export const TextSelectionTooltip = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 p-4">
-      <Card className="max-w-md w-full">
+    <div 
+      className="fixed inset-0 bg-black/20 flex items-center justify-center z-50 p-4"
+      onClick={onCancel}
+    >
+      <Card 
+        className="max-w-md w-full"
+        onClick={(e) => e.stopPropagation()}
+        data-tooltip="true"
+      >
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center space-x-2 text-sm">

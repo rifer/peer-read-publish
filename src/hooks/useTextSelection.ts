@@ -78,9 +78,11 @@ export const useTextSelection = (options: UseTextSelectionOptions = {}) => {
     container.addEventListener('mouseup', handleSelection);
     container.addEventListener('touchend', handleSelection);
     
-    // Clear selection when clicking outside
+    // Clear selection when clicking outside (but not when tooltip is visible)
     const handleClickOutside = (event: MouseEvent) => {
-      if (!container.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isInsideTooltip = target instanceof Element && target.closest('[data-tooltip]');
+      if (!container.contains(target) && !isInsideTooltip) {
         clearSelection();
       }
     };
