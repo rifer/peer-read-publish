@@ -232,6 +232,7 @@ const ArticlePage = () => {
 
       // Insert citations if any
       if (citations.length > 0) {
+        console.log('Inserting citations:', citations.length, 'for review:', reviewData.id);
         const citationsToInsert = citations.map(citation => ({
           review_id: reviewData.id,
           selected_text: citation.selected_text,
@@ -242,9 +243,11 @@ const ArticlePage = () => {
           note: citation.note,
         }));
 
-        const { error: citationsError } = await supabase
+        console.log('Citations to insert:', citationsToInsert);
+        const { data: citationData, error: citationsError } = await supabase
           .from('review_citations')
-          .insert(citationsToInsert);
+          .insert(citationsToInsert)
+          .select();
 
         if (citationsError) {
           console.error('Error submitting citations:', citationsError);
@@ -253,6 +256,10 @@ const ArticlePage = () => {
             description: "Review submitted successfully, but there was an issue with citations.",
             variant: "destructive",
           });
+        } else {
+          console.log('Citations inserted successfully:', citationData);
+          // Clear local citations after successful insert
+          setCitations([]);
         }
       }
       
