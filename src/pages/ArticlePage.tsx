@@ -102,13 +102,10 @@ const ArticlePage = () => {
 
         setArticle(articleData);
 
-        // Fetch reviews with reviewer profile data
+        // Fetch reviews first
         const { data: reviewsData, error: reviewsError } = await supabase
           .from('reviews')
-          .select(`
-            *,
-            reviewer:profiles!reviews_reviewer_id_fkey(full_name)
-          `)
+          .select('*')
           .eq('article_id', id)
           .order('created_at', { ascending: false });
 
@@ -116,7 +113,25 @@ const ArticlePage = () => {
           console.error('Error fetching reviews:', reviewsError);
         } else {
           console.log('Fetched reviews:', reviewsData);
-          setReviews(reviewsData || []);
+          
+          // Fetch reviewer profiles
+          const reviewerIds = reviewsData?.map(r => r.reviewer_id) || [];
+          if (reviewerIds.length > 0) {
+            const { data: profilesData } = await supabase
+              .from('profiles')
+              .select('id, full_name')
+              .in('id', reviewerIds);
+              
+            // Combine reviews with profile data
+            const reviewsWithProfiles = reviewsData?.map(review => ({
+              ...review,
+              profiles: profilesData?.find(p => p.id === review.reviewer_id)
+            })) || [];
+            
+            setReviews(reviewsWithProfiles);
+          } else {
+            setReviews(reviewsData || []);
+          }
         }
 
         // Check if current user has already reviewed this article
@@ -198,12 +213,16 @@ const ArticlePage = () => {
           return;
         }
         reviewData = data;
-
-        // Delete existing citations and insert new ones
-        await supabase
+        
+        // Delete existing citations for this review
+        const { error: deleteError } = await supabase
           .from('review_citations')
           .delete()
           .eq('review_id', existingReviewId);
+          
+        if (deleteError) {
+          console.error('Error deleting existing citations:', deleteError);
+        }
       } else {
         // Insert new review
         const { data, error: reviewError } = await supabase
@@ -264,17 +283,31 @@ const ArticlePage = () => {
       }
       
       // Refresh reviews to show the updated data
-      const { data: reviewsData } = await supabase
+      const { data: refreshedReviews } = await supabase
         .from('reviews')
-        .select(`
-          *,
-          reviewer:profiles!reviews_reviewer_id_fkey(full_name)
-        `)
+        .select('*')
         .eq('article_id', id)
         .order('created_at', { ascending: false });
-      
-      console.log('Refreshed reviews after submission:', reviewsData);
-      setReviews(reviewsData || []);
+        
+      if (refreshedReviews && refreshedReviews.length > 0) {
+        // Fetch reviewer profiles
+        const reviewerIds = refreshedReviews.map(r => r.reviewer_id);
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', reviewerIds);
+          
+        // Combine reviews with profile data
+        const reviewsWithProfiles = refreshedReviews.map(review => ({
+          ...review,
+          profiles: profilesData?.find(p => p.id === review.reviewer_id)
+        }));
+        
+        console.log('Refreshed reviews after submission:', reviewsWithProfiles);
+        setReviews(reviewsWithProfiles);
+      } else {
+        setReviews(refreshedReviews || []);
+      }
 
       toast({
         title: "Success",
@@ -405,12 +438,12 @@ const ArticlePage = () => {
             reviews.map((review) => (
               <ReviewCard 
                 key={review.id} 
-                review={{
-                  ...review,
-                  reviewer: review.reviewer?.full_name || 'Anonymous Reviewer',
-                  date: new Date(review.created_at).toLocaleDateString(),
-                  helpful: 0 // This would need to be implemented separately
-                }} 
+                 review={{
+                   ...review,
+                   reviewer: review.profiles?.full_name || 'Anonymous Reviewer',
+                   date: new Date(review.created_at).toLocaleDateString(),
+                   helpful: 0 // This would need to be implemented separately
+                 }}
               />
             ))
           )}
