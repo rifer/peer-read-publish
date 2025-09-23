@@ -55,6 +55,7 @@ const ArticlePage = () => {
       note,
     };
 
+    console.log('Adding citation locally:', newCitation);
     setCitations(prev => [...prev, { ...newCitation, id: Date.now().toString() }]);
     setShowTooltip(false);
     clearSelection();
@@ -252,6 +253,9 @@ const ArticlePage = () => {
       // Insert citations if any
       if (citations.length > 0) {
         console.log('Inserting citations:', citations.length, 'for review:', reviewData.id);
+        console.log('Current user ID:', user.id);
+        console.log('Citations to insert:', citations);
+        
         const citationsToInsert = citations.map(citation => ({
           review_id: reviewData.id,
           selected_text: citation.selected_text,
@@ -262,7 +266,7 @@ const ArticlePage = () => {
           note: citation.note,
         }));
 
-        console.log('Citations to insert:', citationsToInsert);
+        console.log('Final citations payload:', citationsToInsert);
         const { data: citationData, error: citationsError } = await supabase
           .from('review_citations')
           .insert(citationsToInsert)
@@ -270,9 +274,10 @@ const ArticlePage = () => {
 
         if (citationsError) {
           console.error('Error submitting citations:', citationsError);
+          console.error('Full error details:', JSON.stringify(citationsError, null, 2));
           toast({
             title: "Review submitted",
-            description: "Review submitted successfully, but there was an issue with citations.",
+            description: `Review submitted successfully, but there was an issue with citations: ${citationsError.message}`,
             variant: "destructive",
           });
         } else {
@@ -280,6 +285,8 @@ const ArticlePage = () => {
           // Clear local citations after successful insert
           setCitations([]);
         }
+      } else {
+        console.log('No citations to insert');
       }
       
       // Refresh reviews to show the updated data
