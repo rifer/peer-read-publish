@@ -28,6 +28,7 @@ const ArticlePage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [citations, setCitations] = useState<any[]>([]);
+  const [allCitations, setAllCitations] = useState<any[]>([]);
   const [showTooltip, setShowTooltip] = useState(false);
   const [highlightedCitationId, setHighlightedCitationId] = useState<string>();
   const [existingReviewId, setExistingReviewId] = useState<string | null>(null);
@@ -76,7 +77,34 @@ const ArticlePage = () => {
 
   const handleHighlightCitation = (citation: any) => {
     setHighlightedCitationId(citation.id);
+    
+    // Scroll to the highlighted text in the article
+    const highlightedElement = document.querySelector(`[data-citation-id="${citation.id}"]`);
+    if (highlightedElement) {
+      highlightedElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+    }
+    
     setTimeout(() => setHighlightedCitationId(undefined), 3000);
+  };
+
+  const handleCitationClick = (citation: any) => {
+    // Scroll to the citation in the reviews section
+    const citationElement = document.getElementById(`citation-${citation.id}`);
+    if (citationElement) {
+      citationElement.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      
+      // Briefly highlight the citation card
+      citationElement.classList.add('ring-2', 'ring-primary');
+      setTimeout(() => {
+        citationElement.classList.remove('ring-2', 'ring-primary');
+      }, 2000);
+    }
   };
   // Fetch article and reviews
   useEffect(() => {
@@ -130,6 +158,20 @@ const ArticlePage = () => {
             })) || [];
             
             setReviews(reviewsWithProfiles);
+
+            // Fetch all citations for all reviews
+            if (reviewsData && reviewsData.length > 0) {
+              const reviewIds = reviewsData.map(r => r.id);
+              const { data: allCitationsData } = await supabase
+                .from('review_citations')
+                .select('*')
+                .in('review_id', reviewIds);
+              
+              if (allCitationsData) {
+                console.log('Fetched all citations:', allCitationsData);
+                setAllCitations(allCitationsData);
+              }
+            }
           } else {
             setReviews(reviewsData || []);
           }
@@ -312,8 +354,20 @@ const ArticlePage = () => {
         
         console.log('Refreshed reviews after submission:', reviewsWithProfiles);
         setReviews(reviewsWithProfiles);
+
+        // Refresh all citations
+        const reviewIds = refreshedReviews.map(r => r.id);
+        const { data: allCitationsData } = await supabase
+          .from('review_citations')
+          .select('*')
+          .in('review_id', reviewIds);
+        
+        if (allCitationsData) {
+          setAllCitations(allCitationsData);
+        }
       } else {
         setReviews(refreshedReviews || []);
+        setAllCitations([]);
       }
 
       toast({
@@ -394,9 +448,9 @@ const ArticlePage = () => {
             <div ref={containerRef}>
               <HighlightedText
                 content={article.content}
-                citations={[]} // Will show all citations from all reviews
+                citations={allCitations}
                 highlightedCitationId={highlightedCitationId}
-                onCitationClick={handleHighlightCitation}
+                onCitationClick={handleCitationClick}
               />
             </div>
           </CardContent>

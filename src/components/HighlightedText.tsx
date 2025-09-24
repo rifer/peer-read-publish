@@ -65,14 +65,14 @@ export const HighlightedText = ({
 
       const isHighlighted = highlightedCitationId === citation.id;
       const highlightClass = isHighlighted 
-        ? 'bg-yellow-200 border-yellow-400 border-2 rounded px-1' 
-        : 'bg-blue-100 hover:bg-blue-200 border-b-2 border-blue-300 cursor-pointer';
+        ? 'bg-yellow-200 border-yellow-400 border-2 rounded px-1 shadow-lg transform scale-105' 
+        : 'bg-blue-100 hover:bg-blue-200 border-b-2 border-blue-300 cursor-pointer hover:shadow-md';
       
       // Create the highlighted span
       const highlightedSpan = `<span 
-        class="${highlightClass} transition-colors duration-200" 
+        class="${highlightClass} transition-all duration-300 ease-in-out" 
         data-citation-id="${citation.id}"
-        title="${citation.note}"
+        title="📝 ${citation.note}"
       >${citation.selected_text}</span>`;
       
       // Replace the first occurrence of the citation text

@@ -35,7 +35,7 @@ export const CitationsList = ({
       </h4>
       
       {citations.map((citation, index) => (
-        <Card key={citation.id} className="border-l-4 border-l-primary">
+        <Card key={citation.id} className="border-l-4 border-l-primary" id={`citation-${citation.id}`}>
           <CardContent className="p-3">
             <div className="space-y-2">
               <div 
