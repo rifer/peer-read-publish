@@ -392,38 +392,12 @@ const ArticlePage = () => {
         <Card className="mb-8">
           <CardContent className="p-8">
             <div ref={containerRef}>
-              {canReview ? (
-                <HighlightedText
-                  content={article.content}
-                  citations={[]} // For now, we'll show existing citations later
-                  highlightedCitationId={highlightedCitationId}
-                  onCitationClick={handleHighlightCitation}
-                />
-              ) : (
-                <div className="prose prose-gray max-w-none">
-                  {article.content.split('\n').map((paragraph, index) => {
-                    if (paragraph.trim().startsWith('##')) {
-                      return (
-                        <h2 key={index} className="text-xl font-semibold text-foreground mt-6 mb-3">
-                          {paragraph.replace('##', '').trim()}
-                        </h2>
-                      );
-                    }
-                    if (paragraph.trim().startsWith('-')) {
-                      return (
-                        <li key={index} className="text-foreground ml-4">
-                          {paragraph.replace('-', '').trim()}
-                        </li>
-                      );
-                    }
-                    return paragraph.trim() ? (
-                      <p key={index} className="text-foreground mb-4 leading-relaxed">
-                        {paragraph.trim()}
-                      </p>
-                    ) : null;
-                  })}
-                </div>
-              )}
+              <HighlightedText
+                content={article.content}
+                citations={[]} // Will show all citations from all reviews
+                highlightedCitationId={highlightedCitationId}
+                onCitationClick={handleHighlightCitation}
+              />
             </div>
           </CardContent>
         </Card>
@@ -438,7 +412,10 @@ const ArticlePage = () => {
           {reviews.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center text-muted-foreground">
-                No reviews yet. Be the first to review this article!
+                {canReview 
+                  ? "No reviews yet. Be the first to review this article!"
+                  : "No reviews available for this article yet."
+                }
               </CardContent>
             </Card>
           ) : (
