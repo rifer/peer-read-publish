@@ -1,70 +1,121 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import ArticleCard from "@/components/ArticleCard";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Mock data for articles
-const mockArticles = [
-  {
-    id: "1",
-    title: "Novel Approaches to Quantum Computing Error Correction",
-    authors: ["Dr. Sarah Johnson", "Prof. Michael Chen", "Dr. Alex Rodriguez"],
-    abstract: "This paper presents innovative methods for quantum error correction using topological quantum codes. Our approach demonstrates a 40% improvement in error correction efficiency compared to traditional surface codes.",
-    subject: "Quantum Physics",
-    publishedDate: "2024-01-15",
-    status: 'published' as const,
-    reviewCount: 3,
-    views: 1250
-  },
-  {
-    id: "2",
-    title: "Machine Learning Applications in Drug Discovery: A Comprehensive Review",
-    authors: ["Dr. Lisa Park", "Prof. James Wilson"],
-    abstract: "We present a systematic review of machine learning techniques applied to drug discovery, analyzing over 200 recent studies and identifying key trends and future opportunities in computational pharmaceutical research.",
-    subject: "Bioinformatics",
-    publishedDate: "2024-01-12",
-    status: 'under-review' as const,
-    reviewCount: 2,
-    views: 890
-  },
-  {
-    id: "3",
-    title: "Climate Change Impact on Arctic Ice Dynamics: A 20-Year Analysis",
-    authors: ["Dr. Emma Thompson", "Prof. Robert Arctic", "Dr. Yuki Tanaka"],
-    abstract: "Our comprehensive analysis of Arctic ice data over two decades reveals accelerating ice loss patterns and their implications for global sea level rise. We present new predictive models based on satellite imagery and ground observations.",
-    subject: "Climate Science",
-    publishedDate: "2024-01-10",
-    status: 'published' as const,
-    reviewCount: 5,
-    views: 2100
-  },
-  {
-    id: "4",
-    title: "CRISPR-Cas9 Optimization for Therapeutic Gene Editing",
-    authors: ["Dr. Maria Santos", "Prof. David Chang"],
-    abstract: "We describe novel modifications to the CRISPR-Cas9 system that improve targeting accuracy by 85% while reducing off-target effects. These improvements have significant implications for therapeutic gene editing applications.",
-    subject: "Genetics",
-    publishedDate: "2024-01-08",
-    status: 'submitted' as const,
-    reviewCount: 0,
-    views: 450
-  }
-];
+interface HomeArticle {
+  id: string;
+  title: string;
+  authors: string[];
+  abstract: string;
+  subject: string;
+  publishedDate: string;
+  status: 'under-review' | 'published' | 'submitted' | 'draft';
+  reviewCount: number;
+  views: number;
+}
+
+interface Stats {
+  publishedArticles: number;
+  totalReviews: number;
+  totalUsers: number;
+}
 
 const Index = () => {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState("all");
+  const [articles, setArticles] = useState<HomeArticle[]>([]);
+  const [stats, setStats] = useState<Stats>({ publishedArticles: 0, totalReviews: 0, totalUsers: 0 });
+  const [loading, setLoading] = useState(true);
+  const [articlesPerPage] = useState(8);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const filteredArticles = mockArticles.filter(article => {
+  const filteredArticles = articles.filter(article => {
     if (selectedTab === "all") return true;
     return article.status === selectedTab;
   });
 
+  const paginatedArticles = filteredArticles.slice(0, currentPage * articlesPerPage);
+  const hasMoreArticles = filteredArticles.length > paginatedArticles.length;
+
   const handleArticleClick = (articleId: string) => {
     navigate(`/article/${articleId}`);
   };
+
+  const loadMoreArticles = () => {
+    setCurrentPage(prev => prev + 1);
+  };
+
+  useEffect(() => {
+    const fetchArticlesAndStats = async () => {
+      try {
+        // Fetch articles with review counts
+        const { data: articlesData } = await supabase
+          .from('articles')
+          .select(`
+            id,
+            title,
+            authors,
+            abstract,
+            subject,
+            published_date,
+            status,
+            created_at
+          `)
+          .order('created_at', { ascending: false });
+
+        if (articlesData) {
+          // Get review counts for each article
+          const articlesWithCounts = await Promise.all(
+            articlesData.map(async (article) => {
+              const { count: reviewCount } = await supabase
+                .from('reviews')
+                .select('*', { count: 'exact', head: true })
+                .eq('article_id', article.id);
+
+              return {
+                id: article.id,
+                title: article.title,
+                authors: article.authors as string[],
+                abstract: article.abstract,
+                subject: article.subject,
+                publishedDate: article.published_date ? new Date(article.published_date).toLocaleDateString() : new Date(article.created_at).toLocaleDateString(),
+                status: article.status as HomeArticle['status'],
+                reviewCount: reviewCount || 0,
+                views: Math.floor(Math.random() * 2000) + 100 // Mock views for now
+              };
+            })
+          );
+
+          setArticles(articlesWithCounts);
+        }
+
+        // Fetch statistics using direct queries
+        const [articlesCount, reviewsCount, usersCount] = await Promise.all([
+          supabase.from('articles').select('*', { count: 'exact', head: true }).eq('status', 'published'),
+          supabase.from('reviews').select('*', { count: 'exact', head: true }),
+          supabase.from('profiles').select('*', { count: 'exact', head: true })
+        ]);
+
+        setStats({
+          publishedArticles: articlesCount.count || 0,
+          totalReviews: reviewsCount.count || 0,
+          totalUsers: usersCount.count || 0
+        });
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchArticlesAndStats();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -108,30 +159,71 @@ const Index = () => {
         </Tabs>
 
         {/* Articles Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredArticles.map((article) => (
-            <ArticleCard
-              key={article.id}
-              article={article}
-              onClick={() => handleArticleClick(article.id)}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="space-y-3">
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : paginatedArticles.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedArticles.map((article) => (
+                <ArticleCard
+                  key={article.id}
+                  article={{
+                    ...article,
+                    status: article.status as 'under-review' | 'published' | 'submitted'
+                  }}
+                  onClick={() => handleArticleClick(article.id)}
+                />
+              ))}
+            </div>
+            
+            {hasMoreArticles && (
+              <div className="text-center mt-8">
+                <Button onClick={loadMoreArticles} variant="outline" size="lg">
+                  Load More Articles
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground text-lg">No articles found matching your criteria.</p>
+          </div>
+        )}
 
         {/* Stats Section */}
         <section className="mt-16 py-12 bg-secondary rounded-lg">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
               <div>
-                <h3 className="text-3xl font-bold text-primary mb-2">1,250+</h3>
+                {loading ? (
+                  <Skeleton className="h-8 w-16 mx-auto mb-2" />
+                ) : (
+                  <h3 className="text-3xl font-bold text-primary mb-2">{stats.publishedArticles}+</h3>
+                )}
                 <p className="text-muted-foreground">Published Articles</p>
               </div>
               <div>
-                <h3 className="text-3xl font-bold text-primary mb-2">5,000+</h3>
+                {loading ? (
+                  <Skeleton className="h-8 w-16 mx-auto mb-2" />
+                ) : (
+                  <h3 className="text-3xl font-bold text-primary mb-2">{stats.totalReviews}+</h3>
+                )}
                 <p className="text-muted-foreground">Peer Reviews</p>
               </div>
               <div>
-                <h3 className="text-3xl font-bold text-primary mb-2">800+</h3>
+                {loading ? (
+                  <Skeleton className="h-8 w-16 mx-auto mb-2" />
+                ) : (
+                  <h3 className="text-3xl font-bold text-primary mb-2">{stats.totalUsers}+</h3>
+                )}
                 <p className="text-muted-foreground">Active Researchers</p>
               </div>
             </div>
