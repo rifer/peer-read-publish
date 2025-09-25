@@ -35,7 +35,7 @@ interface Reviewer {
 
 const SubmitArticle = () => {
   const navigate = useNavigate();
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, refreshSession } = useAuth();
   const [authors, setAuthors] = useState<string[]>([""]);
   const [selectedReviewers, setSelectedReviewers] = useState<string[]>([]);
   const [reviewers, setReviewers] = useState<Reviewer[]>([]);
@@ -134,9 +134,21 @@ const SubmitArticle = () => {
       toast.success("Article submitted successfully!");
       navigate('/');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting article:', error);
-      toast.error("Failed to submit article. Please try again.");
+      
+      // Check if it's an RLS violation (session issue)
+      if (error?.code === '42501') {
+        toast.error("Session expired. Refreshing authentication...");
+        try {
+          await refreshSession();
+          toast.info("Please try submitting again.");
+        } catch (refreshError) {
+          console.error('Error refreshing session:', refreshError);
+        }
+      } else {
+        toast.error("Failed to submit article. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }

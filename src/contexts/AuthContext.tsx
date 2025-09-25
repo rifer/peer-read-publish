@@ -29,6 +29,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   hasRole: (role: 'admin' | 'reviewer' | 'writer') => boolean;
   refreshUserData: () => Promise<void>;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -84,6 +85,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshUserData = async () => {
     if (user?.id) {
       await fetchUserProfile(user.id);
+    }
+  };
+
+  const refreshSession = async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) {
+        console.error('Error refreshing session:', error);
+        toast.error('Session expired. Please sign in again.');
+        await signOut();
+      }
+    } catch (error) {
+      console.error('Error refreshing session:', error);
+      toast.error('Session expired. Please sign in again.');
+      await signOut();
     }
   };
 
@@ -171,6 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signOut,
     hasRole,
     refreshUserData,
+    refreshSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
