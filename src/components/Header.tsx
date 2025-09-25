@@ -67,8 +67,21 @@ const Header = () => {
             {user ? (
               <>
                 {(hasRole('writer') || hasRole('admin')) && (
-                  <Button variant="ghost" className="text-primary-foreground hover:bg-white/10">
+                  <Button 
+                    variant="ghost" 
+                    className="text-primary-foreground hover:bg-white/10"
+                    onClick={() => navigate('/submit-article')}
+                  >
                     Submit Article
+                  </Button>
+                )}
+                {hasRole('admin') && (
+                  <Button 
+                    variant="ghost" 
+                    className="text-primary-foreground hover:bg-white/10"
+                    onClick={() => navigate('/admin')}
+                  >
+                    Admin Panel
                   </Button>
                 )}
                 
