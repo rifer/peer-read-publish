@@ -35,7 +35,7 @@ interface Reviewer {
 
 const SubmitArticle = () => {
   const navigate = useNavigate();
-  const { user, hasRole, refreshSession } = useAuth();
+  const { user, session, hasRole, refreshSession, signOut } = useAuth();
   const [authors, setAuthors] = useState<string[]>([""]);
   const [selectedReviewers, setSelectedReviewers] = useState<string[]>([]);
   const [reviewers, setReviewers] = useState<Reviewer[]>([]);
@@ -112,6 +112,19 @@ const SubmitArticle = () => {
     setIsSubmitting(true);
     
     try {
+      // Debug: Check authentication state
+      console.log('User ID:', user.id);
+      console.log('Session exists:', !!session);
+      
+      // Ensure we have a fresh session
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      console.log('Current session valid:', !!currentSession);
+      
+      if (!currentSession) {
+        toast.error("Authentication session expired. Please sign in again.");
+        await signOut();
+        return;
+      }
       const filteredAuthors = authors.filter(author => author.trim());
       
       const { data: article, error } = await supabase
