@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface HomeArticle {
   id: string;
@@ -27,6 +29,7 @@ interface Stats {
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user, hasRole } = useAuth();
   const [selectedTab, setSelectedTab] = useState("all");
   const [articles, setArticles] = useState<HomeArticle[]>([]);
   const [stats, setStats] = useState<Stats>({ publishedArticles: 0, totalReviews: 0, totalUsers: 0 });
@@ -48,6 +51,23 @@ const Index = () => {
 
   const loadMoreArticles = () => {
     setCurrentPage(prev => prev + 1);
+  };
+
+  const handleSubmitClick = () => {
+    if (!user) {
+      navigate('/auth');
+      toast.info("Please sign in to submit research");
+    } else if (hasRole('writer') || hasRole('admin')) {
+      navigate('/submit');
+    } else if (hasRole('reviewer')) {
+      toast.info("You need writer access to submit articles. Please contact an admin.");
+    } else {
+      toast.error("You don't have permission to submit articles");
+    }
+  };
+
+  const handleReviewerClick = () => {
+    navigate('/apply-reviewer');
   };
 
   useEffect(() => {
@@ -131,10 +151,10 @@ const Index = () => {
             Discover groundbreaking research, contribute to scientific discourse, and advance knowledge through collaborative peer review
           </p>
           <div className="space-x-4">
-            <Button size="lg" className="bg-white text-primary hover:bg-white/90">
+            <Button size="lg" className="bg-white text-primary hover:bg-white/90" onClick={handleSubmitClick}>
               Submit Your Research
             </Button>
-            <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-academic">
+            <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-academic" onClick={handleReviewerClick}>
               Become a Reviewer
             </Button>
           </div>
