@@ -112,19 +112,21 @@ const SubmitArticle = () => {
     setIsSubmitting(true);
     
     try {
-      // Debug: Check authentication state
-      console.log('User ID:', user.id);
-      console.log('Session exists:', !!session);
+      // Ensure session is set explicitly
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
       
-      // Ensure we have a fresh session
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      console.log('Current session valid:', !!currentSession);
-      
-      if (!currentSession) {
-        toast.error("Authentication session expired. Please sign in again.");
-        await signOut();
+      if (!currentSession || sessionError) {
+        toast.error("Your session has expired. Please sign out and sign back in.");
+        console.error('Session error:', sessionError);
         return;
       }
+
+      // Explicitly set the session on the client to ensure JWT is sent
+      await supabase.auth.setSession({
+        access_token: currentSession.access_token,
+        refresh_token: currentSession.refresh_token
+      });
+      
       const filteredAuthors = authors.filter(author => author.trim());
       
       const { data: article, error } = await supabase
