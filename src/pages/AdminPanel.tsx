@@ -49,13 +49,18 @@ const AdminPanel = () => {
 
   // Fetch articles and users
   useEffect(() => {
+    console.log('Admin: useEffect triggered, hasRole(admin):', hasRole('admin'));
     if (hasRole('admin')) {
+      console.log('Admin: User is admin, fetching data...');
       fetchArticles();
       fetchUsers();
+    } else {
+      console.log('Admin: User is NOT admin');
     }
   }, [hasRole]);
 
   const fetchArticles = async () => {
+    console.log('Admin: Fetching articles...');
     const { data, error } = await supabase
       .from('articles')
       .select(`
@@ -72,7 +77,15 @@ const AdminPanel = () => {
       `)
       .order('created_at', { ascending: false });
 
+    console.log('Admin: Articles response:', { data, error, count: data?.length });
+
+    if (error) {
+      console.error('Admin: Error fetching articles:', error);
+      toast.error("Failed to load articles");
+    }
+
     if (!error && data) {
+      console.log('Admin: Processing articles data...', data);
       const articlesWithSubmitter = data.map(article => ({
         id: article.id,
         title: article.title,
@@ -83,6 +96,7 @@ const AdminPanel = () => {
         submitter_id: article.submitter_id,
         submitter_name: (article.profiles as any)?.full_name || 'Unknown'
       }));
+      console.log('Admin: Processed articles:', articlesWithSubmitter);
       setArticles(articlesWithSubmitter);
     }
     setLoading(false);
