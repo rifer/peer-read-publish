@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, FileText, Users, Eye } from "lucide-react";
+import { Shield, FileText, Users, Eye, Plus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -137,12 +137,48 @@ const AdminPanel = () => {
     }
   };
 
+  const addRoleToUser = async (userId: string, role: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role: role as 'admin' | 'reviewer' | 'writer' });
+
+      if (error) throw error;
+
+      await fetchUsers();
+      toast.success(`Role ${role} added successfully`);
+    } catch (error: any) {
+      if (error.code === '23505') {
+        toast.error("User already has this role");
+      } else {
+        toast.error("Failed to add role");
+      }
+    }
+  };
+
+  const removeRoleFromUser = async (userId: string, role: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role', role as 'admin' | 'reviewer' | 'writer');
+
+      if (error) throw error;
+
+      await fetchUsers();
+      toast.success(`Role ${role} removed successfully`);
+    } catch (error) {
+      toast.error("Failed to remove role");
+    }
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'published': return 'default';
-      case 'under-review': return 'secondary';
-      case 'submitted': return 'outline';
-      case 'draft': return 'destructive';
+      case 'under_review': return 'secondary';
+      case 'rejected': return 'destructive';
+      case 'draft': return 'outline';
       default: return 'outline';
     }
   };
@@ -230,9 +266,9 @@ const AdminPanel = () => {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="draft">Draft</SelectItem>
-                                <SelectItem value="submitted">Submitted</SelectItem>
-                                <SelectItem value="under-review">Under Review</SelectItem>
+                                <SelectItem value="under_review">Under Review</SelectItem>
                                 <SelectItem value="published">Published</SelectItem>
+                                <SelectItem value="rejected">Rejected</SelectItem>
                               </SelectContent>
                             </Select>
                             <Button
@@ -257,7 +293,7 @@ const AdminPanel = () => {
               <CardHeader>
                 <CardTitle>User Overview</CardTitle>
                 <CardDescription>
-                  View all registered users and their roles
+                  Manage user roles and permissions
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -268,6 +304,7 @@ const AdminPanel = () => {
                       <TableHead>Email</TableHead>
                       <TableHead>Roles</TableHead>
                       <TableHead>Joined</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -281,8 +318,14 @@ const AdminPanel = () => {
                           <div className="flex flex-wrap gap-1">
                             {user.roles.length > 0 ? (
                               user.roles.map((role) => (
-                                <Badge key={role} variant="secondary" className="text-xs">
+                                <Badge key={role} variant="secondary" className="text-xs flex items-center gap-1">
                                   {role}
+                                  <button
+                                    onClick={() => removeRoleFromUser(user.id, role)}
+                                    className="ml-1 hover:text-destructive"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
                                 </Badge>
                               ))
                             ) : (
@@ -292,6 +335,20 @@ const AdminPanel = () => {
                         </TableCell>
                         <TableCell>
                           {new Date(user.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            onValueChange={(value) => addRoleToUser(user.id, value)}
+                          >
+                            <SelectTrigger className="w-[140px]">
+                              <SelectValue placeholder="Add role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="writer">Writer</SelectItem>
+                              <SelectItem value="reviewer">Reviewer</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                       </TableRow>
                     ))}
