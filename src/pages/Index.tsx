@@ -39,6 +39,8 @@ const Index = () => {
 
   const filteredArticles = articles.filter(article => {
     if (selectedTab === "all") return true;
+    if (selectedTab === "under-review") return article.status === "under-review";
+    if (selectedTab === "submitted") return article.status === "draft" || article.status === "submitted";
     return article.status === selectedTab;
   });
 
