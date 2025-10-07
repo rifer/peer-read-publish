@@ -26,6 +26,8 @@ interface AuthContextType {
   roles: UserRole[];
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   hasRole: (role: 'admin' | 'reviewer' | 'writer') => boolean;
   refreshUserData: () => Promise<void>;
@@ -160,6 +162,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithPassword = async (email: string, password: string) => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        toast.error(error.message);
+        return { error };
+      }
+
+      toast.success('Signed in successfully');
+      return { error: null };
+    } catch (error: any) {
+      toast.error('Failed to sign in');
+      return { error };
+    }
+  };
+
+  const signUp = async (email: string, password: string, fullName: string) => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+        return { error };
+      }
+
+      toast.success('Account created! Please check your email to verify your account.');
+      return { error: null };
+    } catch (error: any) {
+      toast.error('Failed to sign up');
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     try {
       const { error } = await supabase.auth.signOut();
@@ -184,6 +234,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     roles,
     loading,
     signInWithGoogle,
+    signInWithPassword,
+    signUp,
     signOut,
     hasRole,
     refreshUserData,

@@ -1,13 +1,28 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { BookOpen } from 'lucide-react';
+import { z } from 'zod';
+
+const emailSchema = z.string().email('Invalid email address');
+const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 
 const AuthPage = () => {
-  const { user, signInWithGoogle, loading } = useAuth();
+  const { user, signInWithGoogle, signInWithPassword, signUp, loading } = useAuth();
   const navigate = useNavigate();
+  
+  const [isSignIn, setIsSignIn] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
 
   useEffect(() => {
     // Redirect authenticated users to home
@@ -15,6 +30,45 @@ const AuthPage = () => {
       navigate('/');
     }
   }, [user, loading, navigate]);
+
+  const validateForm = () => {
+    const newErrors: { email?: string; password?: string; fullName?: string } = {};
+    
+    try {
+      emailSchema.parse(email);
+    } catch (error) {
+      newErrors.email = 'Invalid email address';
+    }
+
+    try {
+      passwordSchema.parse(password);
+    } catch (error) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
+    if (!isSignIn && !fullName.trim()) {
+      newErrors.fullName = 'Full name is required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    
+    if (isSignIn) {
+      await signInWithPassword(email, password);
+    } else {
+      await signUp(email, password, fullName);
+    }
+    
+    setIsSubmitting(false);
+  };
 
   if (loading) {
     return (
@@ -43,16 +97,88 @@ const AuthPage = () => {
 
         <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-academic">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-foreground">Sign In</CardTitle>
+            <CardTitle className="text-2xl text-foreground">
+              {isSignIn ? 'Sign In' : 'Create Account'}
+            </CardTitle>
             <CardDescription className="text-muted-foreground">
-              Join our community of researchers, reviewers, and academics
+              {isSignIn 
+                ? 'Welcome back! Sign in to continue' 
+                : 'Join our community of researchers and academics'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Email/Password Form */}
+            <form onSubmit={handleEmailAuth} className="space-y-4">
+              {!isSignIn && (
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="John Doe"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                  {errors.fullName && (
+                    <p className="text-sm text-destructive">{errors.fullName}</p>
+                  )}
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isSubmitting}
+                />
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isSubmitting}
+                />
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password}</p>
+                )}
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isSubmitting || loading}
+              >
+                {isSubmitting ? 'Loading...' : (isSignIn ? 'Sign In' : 'Create Account')}
+              </Button>
+            </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-muted-foreground">Or continue with</span>
+              </div>
+            </div>
+
+            {/* Google Sign In */}
             <Button
               onClick={signInWithGoogle}
               className="w-full h-12 bg-white text-foreground border border-input hover:bg-secondary"
-              disabled={loading}
+              disabled={loading || isSubmitting}
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                 <path
@@ -75,6 +201,22 @@ const AuthPage = () => {
               Continue with Google
             </Button>
 
+            {/* Toggle Sign In/Sign Up */}
+            <div className="text-center text-sm">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignIn(!isSignIn);
+                  setErrors({});
+                }}
+                className="text-primary hover:underline"
+              >
+                {isSignIn 
+                  ? "Don't have an account? Sign up" 
+                  : 'Already have an account? Sign in'}
+              </button>
+            </div>
+
             <div className="space-y-4 text-center text-sm text-muted-foreground">
               <div>
                 <h4 className="font-semibold text-foreground mb-2">What you can do:</h4>
@@ -88,7 +230,7 @@ const AuthPage = () => {
               
               <p className="text-xs">
                 By signing in, you agree to our Terms of Service and Privacy Policy.
-                New users are automatically assigned the "Writer" role and can request additional roles.
+                New users are automatically assigned the "Writer" role.
               </p>
             </div>
           </CardContent>
