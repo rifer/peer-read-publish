@@ -16,7 +16,7 @@ interface HomeArticle {
   abstract: string;
   subject: string;
   publishedDate: string;
-  status: 'under-review' | 'published' | 'submitted' | 'draft';
+  status: 'under_review' | 'published' | 'submitted' | 'draft';
   reviewCount: number;
   views: number;
 }
@@ -39,7 +39,7 @@ const Index = () => {
 
   const filteredArticles = articles.filter(article => {
     if (selectedTab === "all") return true;
-    if (selectedTab === "under-review") return article.status === "under-review";
+    if (selectedTab === "under-review") return article.status === "under_review";
     if (selectedTab === "submitted") return article.status === "draft" || article.status === "submitted";
     return article.status === selectedTab;
   });
@@ -202,10 +202,7 @@ const Index = () => {
               {paginatedArticles.map((article) => (
                 <ArticleCard
                   key={article.id}
-                  article={{
-                    ...article,
-                    status: article.status as 'under-review' | 'published' | 'submitted'
-                  }}
+                  article={article}
                   onClick={() => handleArticleClick(article.id)}
                 />
               ))}

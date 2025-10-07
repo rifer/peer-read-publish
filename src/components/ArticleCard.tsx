@@ -9,7 +9,7 @@ interface Article {
   abstract: string;
   subject: string;
   publishedDate: string;
-  status: 'under-review' | 'published' | 'submitted';
+  status: 'under_review' | 'published' | 'submitted' | 'draft';
   reviewCount: number;
   views: number;
 }
@@ -23,8 +23,9 @@ const ArticleCard = ({ article, onClick }: ArticleCardProps) => {
   const getStatusColor = (status: Article['status']) => {
     switch (status) {
       case 'published': return 'bg-accent text-accent-foreground';
-      case 'under-review': return 'bg-yellow-500 text-white';
+      case 'under_review': return 'bg-yellow-500 text-white';
       case 'submitted': return 'bg-secondary text-secondary-foreground';
+      case 'draft': return 'bg-secondary text-secondary-foreground';
       default: return 'bg-secondary text-secondary-foreground';
     }
   };
@@ -32,8 +33,9 @@ const ArticleCard = ({ article, onClick }: ArticleCardProps) => {
   const getStatusText = (status: Article['status']) => {
     switch (status) {
       case 'published': return 'Published';
-      case 'under-review': return 'Under Review';
+      case 'under_review': return 'Under Review';
       case 'submitted': return 'Submitted';
+      case 'draft': return 'Submitted';
       default: return 'Unknown';
     }
   };
