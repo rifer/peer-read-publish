@@ -45,6 +45,11 @@ const Index = () => {
   const paginatedArticles = filteredArticles.slice(0, currentPage * articlesPerPage);
   const hasMoreArticles = filteredArticles.length > paginatedArticles.length;
 
+  // Reset to page 1 when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedTab]);
+
   const handleArticleClick = (articleId: string) => {
     navigate(`/article/${articleId}`);
   };
