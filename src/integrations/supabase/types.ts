@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      article_citations: {
+        Row: {
+          cited_article_id: string
+          citing_article_title: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          cited_article_id: string
+          citing_article_title: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          cited_article_id?: string
+          citing_article_title?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_citations_cited_article_id_fkey"
+            columns: ["cited_article_id"]
+            isOneToOne: false
+            referencedRelation: "articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       articles: {
         Row: {
           abstract: string

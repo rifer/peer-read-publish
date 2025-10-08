@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Star, Calendar, User, MessageSquare } from "lucide-react";
+import { Star, Calendar, User, MessageSquare, FileText } from "lucide-react";
 import ReviewCard from "@/components/ReviewCard";
 import Header from "@/components/Header";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,8 @@ import { useTextSelection } from "@/hooks/useTextSelection";
 import { TextSelectionTooltip } from "@/components/TextSelectionTooltip";
 import { CitationsList } from "@/components/CitationsList";
 import { HighlightedText } from "@/components/HighlightedText";
+import { CitationDialog } from "@/components/CitationDialog";
+import { ArticleCitationsDisplay } from "@/components/ArticleCitationsDisplay";
 
 // Mock data removal - now using real data from database
 
@@ -32,6 +34,7 @@ const ArticlePage = () => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [highlightedCitationId, setHighlightedCitationId] = useState<string>();
   const [existingReviewId, setExistingReviewId] = useState<string | null>(null);
+  const [showCitationDialog, setShowCitationDialog] = useState(false);
   
   const canReview = user && hasRole('reviewer');
 
@@ -421,9 +424,19 @@ const ArticlePage = () => {
             <Badge variant="outline">{article.subject}</Badge>
           </div>
           
-          <h1 className="text-3xl font-bold text-foreground mb-4 leading-tight">
-            {article.title}
-          </h1>
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-3xl font-bold text-foreground leading-tight">
+              {article.title}
+            </h1>
+            <Button
+              onClick={() => setShowCitationDialog(true)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              CITE
+            </Button>
+          </div>
           
           <div className="flex items-center space-x-6 text-muted-foreground mb-4">
             <div className="flex items-center space-x-2">
@@ -579,6 +592,18 @@ const ArticlePage = () => {
             isVisible={showTooltip}
           />
         )}
+
+        {/* Citation Dialog */}
+        <CitationDialog
+          article={article}
+          open={showCitationDialog}
+          onOpenChange={setShowCitationDialog}
+        />
+
+        {/* Article Citations Display */}
+        <div className="mt-8">
+          <ArticleCitationsDisplay articleId={article.id} />
+        </div>
       </div>
     </div>
   );

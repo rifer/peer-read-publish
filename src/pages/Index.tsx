@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { CitationDialog } from "@/components/CitationDialog";
 
 interface HomeArticle {
   id: string;
@@ -36,6 +37,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
   const [articlesPerPage] = useState(8);
   const [currentPage, setCurrentPage] = useState(1);
+  const [citationDialogArticle, setCitationDialogArticle] = useState<HomeArticle | null>(null);
 
   const filteredArticles = articles.filter(article => {
     if (selectedTab === "all") return true;
@@ -204,6 +206,7 @@ const Index = () => {
                   key={article.id}
                   article={article}
                   onClick={() => handleArticleClick(article.id)}
+                  onCiteClick={(article) => setCitationDialogArticle(article)}
                 />
               ))}
             </div>
@@ -254,6 +257,23 @@ const Index = () => {
           </div>
         </section>
       </main>
+
+      {/* Citation Dialog */}
+      {citationDialogArticle && (
+        <CitationDialog
+          article={{
+            id: citationDialogArticle.id,
+            title: citationDialogArticle.title,
+            authors: citationDialogArticle.authors,
+            published_date: citationDialogArticle.publishedDate,
+            subject: citationDialogArticle.subject,
+          }}
+          open={!!citationDialogArticle}
+          onOpenChange={(open) => {
+            if (!open) setCitationDialogArticle(null);
+          }}
+        />
+      )}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, User, Eye } from "lucide-react";
+import { Calendar, User, Eye, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Article {
   id: string;
@@ -17,9 +18,10 @@ interface Article {
 interface ArticleCardProps {
   article: Article;
   onClick: () => void;
+  onCiteClick?: (article: Article) => void;
 }
 
-const ArticleCard = ({ article, onClick }: ArticleCardProps) => {
+const ArticleCard = ({ article, onClick, onCiteClick }: ArticleCardProps) => {
   const getStatusColor = (status: Article['status']) => {
     switch (status) {
       case 'published': return 'bg-accent text-accent-foreground';
@@ -83,6 +85,20 @@ const ArticleCard = ({ article, onClick }: ArticleCardProps) => {
             </div>
             {article.status === 'published' && (
               <span>{article.reviewCount} reviews</span>
+            )}
+            {onCiteClick && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCiteClick(article);
+                }}
+                className="h-6 px-2 text-xs"
+              >
+                <FileText className="h-3 w-3 mr-1" />
+                CITE
+              </Button>
             )}
           </div>
         </div>
