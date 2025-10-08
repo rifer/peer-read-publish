@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, FileText, Users, Eye, Plus, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Shield, FileText, Users, Eye, Plus, X, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -38,6 +40,8 @@ const AdminPanel = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [isInviting, setIsInviting] = useState(false);
 
   // Redirect if not authorized
   useEffect(() => {
@@ -178,6 +182,34 @@ const AdminPanel = () => {
     }
   };
 
+  const inviteUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!inviteEmail || !inviteEmail.includes('@')) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
+    setIsInviting(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('invite-user', {
+        body: { email: inviteEmail }
+      });
+
+      if (error) throw error;
+
+      toast.success(`Invitation sent to ${inviteEmail}`);
+      setInviteEmail("");
+      await fetchUsers();
+    } catch (error: any) {
+      console.error('Error inviting user:', error);
+      toast.error(error.message || "Failed to send invitation");
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'published': return 'default';
@@ -294,6 +326,35 @@ const AdminPanel = () => {
           </TabsContent>
 
           <TabsContent value="users" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Invite New User</CardTitle>
+                <CardDescription>
+                  Send an invitation email to a new user
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={inviteUser} className="flex gap-4 items-end">
+                  <div className="flex-1">
+                    <Label htmlFor="invite-email">Email Address</Label>
+                    <Input
+                      id="invite-email"
+                      type="email"
+                      placeholder="user@example.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      disabled={isInviting}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" disabled={isInviting}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    {isInviting ? "Sending..." : "Send Invitation"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>User Overview</CardTitle>
