@@ -31,11 +31,13 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
     const authors = Array.isArray(article.authors) 
       ? article.authors.map((a: any) => a.name).join(', ')
       : 'Unknown Authors';
-    const year = article.published_date 
-      ? new Date(article.published_date).getFullYear() 
+    const date = article.published_date 
+      ? new Date(article.published_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
       : 'n.d.';
+    const articleUrl = `${window.location.origin}/article/${article.id}`;
+    const magazineName = 'Academic Review Platform';
     
-    return `${authors}. (${year}). ${article.title}. ${article.subject}.`;
+    return `${authors}. (${date}). "${article.title}". ${magazineName}. ${article.subject}. Available at: ${articleUrl}`;
   };
 
   const handleSubmit = async () => {
