@@ -77,7 +77,21 @@ const Index = () => {
   };
 
   const handleReviewerClick = () => {
-    navigate('/apply-reviewer');
+    if (!user) {
+      navigate('/auth');
+      toast.info("Please sign in to apply as a reviewer");
+    } else {
+      navigate('/apply-reviewer');
+    }
+  };
+
+  const handleCiteClick = (article: HomeArticle) => {
+    if (!user) {
+      navigate('/auth');
+      toast.info("Please sign in to cite articles");
+    } else {
+      setCitationDialogArticle(article);
+    }
   };
 
   useEffect(() => {
@@ -208,7 +222,7 @@ const Index = () => {
                   key={article.id}
                   article={article}
                   onClick={() => handleArticleClick(article.id)}
-                  onCiteClick={(article) => setCitationDialogArticle(article)}
+                  onCiteClick={handleCiteClick}
                 />
               ))}
             </div>

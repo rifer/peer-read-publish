@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +21,7 @@ import { ArticleCitationsDisplay } from "@/components/ArticleCitationsDisplay";
 
 const ArticlePage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user, hasRole } = useAuth();
   const { toast } = useToast();
   const [article, setArticle] = useState<any>(null);
@@ -37,6 +38,18 @@ const ArticlePage = () => {
   const [showCitationDialog, setShowCitationDialog] = useState(false);
   
   const canReview = user && hasRole('reviewer');
+
+  const handleCiteClick = () => {
+    if (!user) {
+      navigate('/auth');
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to cite articles",
+      });
+    } else {
+      setShowCitationDialog(true);
+    }
+  };
 
   const { containerRef, currentSelection, clearSelection } = useTextSelection({
     enableSelection: canReview,
@@ -429,7 +442,7 @@ const ArticlePage = () => {
               {article.title}
             </h1>
             <Button
-              onClick={() => setShowCitationDialog(true)}
+              onClick={handleCiteClick}
               variant="outline"
               className="flex items-center gap-2"
             >
