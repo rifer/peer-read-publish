@@ -203,6 +203,26 @@ const Index = () => {
           </TabsList>
         </Tabs>
 
+        {/* CTA for non-logged-in users on filtered views */}
+        {!user && selectedTab !== "all" && selectedTab !== "published" && (
+          <div className="bg-secondary/50 border border-border rounded-lg p-8 text-center mb-8">
+            <h3 className="text-2xl font-bold text-foreground mb-3">
+              Sign In to Access {selectedTab === "under-review" ? "Under Review" : "Submitted"} Articles
+            </h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              You need to be signed in to view articles in different review stages. 
+              Create an account or sign in to access the full catalog.
+            </p>
+            <Button 
+              size="lg" 
+              onClick={() => navigate('/auth')}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Sign In to Continue
+            </Button>
+          </div>
+        )}
+
         {/* Articles Grid */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
