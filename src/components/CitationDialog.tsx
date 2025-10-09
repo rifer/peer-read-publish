@@ -29,7 +29,7 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
 
   const formatCitation = () => {
     const authors = Array.isArray(article.authors) 
-      ? article.authors.map((a: any) => a.name).join(', ')
+      ? article.authors.map((a: any) => typeof a === 'string' ? a : a.name).join(', ')
       : 'Unknown Authors';
     const date = article.published_date 
       ? new Date(article.published_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })

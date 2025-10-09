@@ -10,6 +10,7 @@ interface Article {
   abstract: string;
   subject: string;
   publishedDate: string;
+  published_date?: string | null;
   status: 'under_review' | 'published' | 'submitted' | 'draft';
   reviewCount: number;
   views: number;

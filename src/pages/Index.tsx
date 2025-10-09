@@ -17,6 +17,7 @@ interface HomeArticle {
   abstract: string;
   subject: string;
   publishedDate: string;
+  published_date?: string | null; // raw date for citation
   status: 'under_review' | 'published' | 'submitted' | 'draft';
   reviewCount: number;
   views: number;
@@ -113,6 +114,7 @@ const Index = () => {
                 abstract: article.abstract,
                 subject: article.subject,
                 publishedDate: article.published_date ? new Date(article.published_date).toLocaleDateString() : new Date(article.created_at).toLocaleDateString(),
+                published_date: article.published_date,
                 status: article.status as HomeArticle['status'],
                 reviewCount: reviewCount || 0,
                 views: Math.floor(Math.random() * 2000) + 100 // Mock views for now
@@ -265,7 +267,7 @@ const Index = () => {
             id: citationDialogArticle.id,
             title: citationDialogArticle.title,
             authors: citationDialogArticle.authors,
-            published_date: citationDialogArticle.publishedDate,
+            published_date: citationDialogArticle.published_date,
             subject: citationDialogArticle.subject,
           }}
           open={!!citationDialogArticle}
