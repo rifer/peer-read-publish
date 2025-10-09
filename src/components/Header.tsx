@@ -70,7 +70,7 @@ const Header = () => {
                   <Button 
                     variant="ghost" 
                     className="text-primary-foreground hover:bg-white/10"
-                    onClick={() => navigate('/submit-article')}
+                    onClick={() => navigate('/submit')}
                   >
                     Submit Article
                   </Button>
