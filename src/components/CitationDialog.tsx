@@ -32,9 +32,6 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
   const { toast } = useToast();
 
   const formatCitation = () => {
-    const authors = Array.isArray(article.authors) 
-      ? article.authors.map((a: any) => typeof a === 'string' ? a : a.name).join(', ')
-      : 'Unknown Authors';
     const year = article.published_date 
       ? new Date(article.published_date).getFullYear()
       : 'n.d.';
@@ -44,19 +41,39 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
     
     switch (citationFormat) {
       case 'APA':
-        // APA 7th edition format for online journal articles
-        return `${authors}. (${year}). ${article.title}. ${magazineName}. ${articleUrl}`;
+        // APA format: Lastname, I. [Firstname]. (Year). Title. Journal, volume(issue), pages. URL
+        const apaAuthors = Array.isArray(article.authors)
+          ? article.authors.map((a: any) => {
+              const name = typeof a === 'string' ? a : a.name;
+              const parts = name.split(' ');
+              const lastName = parts[parts.length - 1];
+              const firstNames = parts.slice(0, -1);
+              const initials = firstNames.map(n => n.charAt(0).toUpperCase()).join('. ');
+              const fullFirstName = firstNames.join(' ');
+              return `${lastName}, ${initials}. [${fullFirstName}]`;
+            }).join(', ')
+          : 'Unknown, A. [Author]';
+        return `${apaAuthors}. (${year}). ${article.title}. ${magazineName}. ${articleUrl}`;
       
       case 'Harvard':
-        // Harvard format for online articles
+        // Harvard format: Lastname, I. (year) 'Title', Journal, vol.(no.), pp. pages. Disponible en: URL (Consultado: date).
+        const harvardAuthors = Array.isArray(article.authors)
+          ? article.authors.map((a: any) => {
+              const name = typeof a === 'string' ? a : a.name;
+              const parts = name.split(' ');
+              const lastName = parts[parts.length - 1];
+              const initials = parts.slice(0, -1).map(n => n.charAt(0).toUpperCase() + '.').join(' ');
+              return `${lastName}, ${initials}`;
+            }).join(' y ')
+          : 'Unknown, A.';
         const day = accessDate.getDate();
-        const month = accessDate.toLocaleDateString('en-GB', { month: 'long' });
+        const monthES = accessDate.toLocaleDateString('es-ES', { month: 'long' });
         const accessYear = accessDate.getFullYear();
-        return `${authors} (${year}) '${article.title}', ${magazineName}. Available at: ${articleUrl} (Accessed: ${day} ${month} ${accessYear}).`;
+        return `${harvardAuthors} (${year}) '${article.title}', ${magazineName}. Disponible en: ${articleUrl} (Consultado: ${day} de ${monthES} de ${accessYear}).`;
       
       case 'ISO 690':
-        // ISO 690 format for online articles
-        const authorsUpperCase = Array.isArray(article.authors)
+        // ISO 690 format: LASTNAME, Firstname. Title. En: Journal [en línea]. Year. [consulta: date]. Disponible en: URL
+        const iso690Authors = Array.isArray(article.authors)
           ? article.authors.map((a: any) => {
               const name = typeof a === 'string' ? a : a.name;
               const parts = name.split(' ');
@@ -64,12 +81,14 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
               const firstName = parts.slice(0, -1).join(' ');
               return `${lastName}, ${firstName}`;
             }).join(', ')
-          : 'UNKNOWN AUTHORS';
-        const isoAccessDate = accessDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
-        return `${authorsUpperCase}. ${article.title}. ${magazineName} [en línea]. ${year} [consulta: ${isoAccessDate}]. Disponible en: ${articleUrl}`;
+          : 'UNKNOWN, Author';
+        const isoDay = accessDate.getDate();
+        const isoMonth = accessDate.toLocaleDateString('es-ES', { month: 'long' });
+        const isoYear = accessDate.getFullYear();
+        return `${iso690Authors}. ${article.title}. En: ${magazineName} [en línea]. ${year}. [consulta: ${isoDay} de ${isoMonth} de ${isoYear}]. Disponible en: ${articleUrl}`;
       
       default:
-        return `${authors}. (${year}). ${article.title}. ${magazineName}. ${articleUrl}`;
+        return `${article.title}. ${articleUrl}`;
     }
   };
 
