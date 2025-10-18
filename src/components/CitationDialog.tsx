@@ -154,18 +154,56 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
 
   const openWithZotero = () => {
     const authors = Array.isArray(article.authors) 
-      ? article.authors.map((a: any) => typeof a === 'string' ? a : a.name).join(', ')
-      : 'Unknown Authors';
+      ? article.authors.map((a: any) => typeof a === 'string' ? a : a.name)
+      : ['Unknown Author'];
     const year = article.published_date ? new Date(article.published_date).getFullYear() : '';
     const articleUrl = `${window.location.origin}/article/${article.id}`;
+    const magazineName = 'Academic Review Platform';
     
-    const zoteroUrl = `zotero://select?title=${encodeURIComponent(article.title)}&creator=${encodeURIComponent(authors)}&date=${year}&url=${encodeURIComponent(articleUrl)}`;
+    // Create RIS format content
+    let risContent = 'TY  - JOUR\n'; // Journal Article
     
-    window.location.href = zoteroUrl;
+    // Add authors
+    authors.forEach(author => {
+      risContent += `AU  - ${author}\n`;
+    });
+    
+    // Add title
+    risContent += `TI  - ${article.title}\n`;
+    
+    // Add journal name
+    risContent += `JO  - ${magazineName}\n`;
+    
+    // Add year
+    if (year) {
+      risContent += `PY  - ${year}\n`;
+    }
+    
+    // Add URL
+    risContent += `UR  - ${articleUrl}\n`;
+    
+    // Add subject as keyword
+    if (article.subject) {
+      risContent += `KW  - ${article.subject}\n`;
+    }
+    
+    // End of reference
+    risContent += 'ER  - \n';
+    
+    // Create blob and download
+    const blob = new Blob([risContent], { type: 'application/x-research-info-systems' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${article.title.substring(0, 50).replace(/[^a-z0-9]/gi, '_')}.ris`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
     
     toast({
-      title: 'Opening Zotero',
-      description: 'If Zotero is installed, it should open now',
+      title: 'RIS File Downloaded',
+      description: 'Import the .ris file into Zotero',
     });
   };
 
