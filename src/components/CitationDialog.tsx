@@ -40,19 +40,36 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
       : 'n.d.';
     const articleUrl = `${window.location.origin}/article/${article.id}`;
     const magazineName = 'Academic Review Platform';
+    const accessDate = new Date();
     
     switch (citationFormat) {
       case 'APA':
-        return `${authors}. (${year}). ${article.title}. ${magazineName}. ${article.subject}. ${articleUrl}`;
+        // APA 7th edition format for online journal articles
+        return `${authors}. (${year}). ${article.title}. ${magazineName}. ${articleUrl}`;
       
       case 'Harvard':
-        return `${authors} ${year}, '${article.title}', ${magazineName}, ${article.subject}, viewed ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}, <${articleUrl}>.`;
+        // Harvard format for online articles
+        const day = accessDate.getDate();
+        const month = accessDate.toLocaleDateString('en-GB', { month: 'long' });
+        const accessYear = accessDate.getFullYear();
+        return `${authors} (${year}) '${article.title}', ${magazineName}. Available at: ${articleUrl} (Accessed: ${day} ${month} ${accessYear}).`;
       
       case 'ISO 690':
-        return `${authors}. ${article.title}. ${magazineName} [online]. ${year} [viewed ${new Date().toISOString().split('T')[0]}]. ${article.subject}. Available from: ${articleUrl}`;
+        // ISO 690 format for online articles
+        const authorsUpperCase = Array.isArray(article.authors)
+          ? article.authors.map((a: any) => {
+              const name = typeof a === 'string' ? a : a.name;
+              const parts = name.split(' ');
+              const lastName = parts[parts.length - 1].toUpperCase();
+              const firstName = parts.slice(0, -1).join(' ');
+              return `${lastName}, ${firstName}`;
+            }).join(', ')
+          : 'UNKNOWN AUTHORS';
+        const isoAccessDate = accessDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+        return `${authorsUpperCase}. ${article.title}. ${magazineName} [en línea]. ${year} [consulta: ${isoAccessDate}]. Disponible en: ${articleUrl}`;
       
       default:
-        return `${authors}. (${year}). ${article.title}. ${magazineName}. ${article.subject}. ${articleUrl}`;
+        return `${authors}. (${year}). ${article.title}. ${magazineName}. ${articleUrl}`;
     }
   };
 
