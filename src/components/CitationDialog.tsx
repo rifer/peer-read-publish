@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Copy, FileText, Link, ExternalLink } from 'lucide-react';
+import { Copy, FileText, Link, ExternalLink, ArrowLeft } from 'lucide-react';
 
 interface Article {
   id: string;
@@ -275,7 +275,14 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
               </p>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="flex-row justify-between">
+              <Button
+                variant="outline"
+                onClick={() => setShowCitationCard(false)}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
               <Button onClick={handleClose}>Done</Button>
             </DialogFooter>
           </div>
