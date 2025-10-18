@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Copy, FileText } from 'lucide-react';
+import { Copy, FileText, Link, ExternalLink } from 'lucide-react';
 
 interface Article {
   id: string;
@@ -21,8 +22,11 @@ interface CitationDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type CitationFormat = 'APA' | 'Harvard' | 'ISO 690';
+
 export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogProps) => {
   const [citingArticleTitle, setCitingArticleTitle] = useState('');
+  const [citationFormat, setCitationFormat] = useState<CitationFormat>('APA');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCitationCard, setShowCitationCard] = useState(false);
   const { toast } = useToast();
@@ -31,13 +35,25 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
     const authors = Array.isArray(article.authors) 
       ? article.authors.map((a: any) => typeof a === 'string' ? a : a.name).join(', ')
       : 'Unknown Authors';
-    const date = article.published_date 
-      ? new Date(article.published_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    const year = article.published_date 
+      ? new Date(article.published_date).getFullYear()
       : 'n.d.';
     const articleUrl = `${window.location.origin}/article/${article.id}`;
     const magazineName = 'Academic Review Platform';
     
-    return `${authors}. (${date}). "${article.title}". ${magazineName}. ${article.subject}. Available at: ${articleUrl}`;
+    switch (citationFormat) {
+      case 'APA':
+        return `${authors}. (${year}). ${article.title}. ${magazineName}. ${article.subject}. ${articleUrl}`;
+      
+      case 'Harvard':
+        return `${authors} ${year}, '${article.title}', ${magazineName}, ${article.subject}, viewed ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}, <${articleUrl}>.`;
+      
+      case 'ISO 690':
+        return `${authors}. ${article.title}. ${magazineName} [online]. ${year} [viewed ${new Date().toISOString().split('T')[0]}]. ${article.subject}. Available from: ${articleUrl}`;
+      
+      default:
+        return `${authors}. (${year}). ${article.title}. ${magazineName}. ${article.subject}. ${articleUrl}`;
+    }
   };
 
   const handleSubmit = async () => {
@@ -91,8 +107,47 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
     });
   };
 
+  const copyLink = () => {
+    const articleUrl = `${window.location.origin}/article/${article.id}`;
+    navigator.clipboard.writeText(articleUrl);
+    toast({
+      title: 'Copied!',
+      description: 'Article link copied to clipboard',
+    });
+  };
+
+  const openWithZotero = () => {
+    const authors = Array.isArray(article.authors) 
+      ? article.authors.map((a: any) => typeof a === 'string' ? a : a.name).join(', ')
+      : 'Unknown Authors';
+    const year = article.published_date ? new Date(article.published_date).getFullYear() : '';
+    const articleUrl = `${window.location.origin}/article/${article.id}`;
+    
+    const zoteroUrl = `zotero://select?title=${encodeURIComponent(article.title)}&creator=${encodeURIComponent(authors)}&date=${year}&url=${encodeURIComponent(articleUrl)}`;
+    
+    window.location.href = zoteroUrl;
+    
+    toast({
+      title: 'Opening Zotero',
+      description: 'If Zotero is installed, it should open now',
+    });
+  };
+
+  const openWithMendeley = () => {
+    const articleUrl = `${window.location.origin}/article/${article.id}`;
+    const mendeleyUrl = `mendeley://view?url=${encodeURIComponent(articleUrl)}`;
+    
+    window.location.href = mendeleyUrl;
+    
+    toast({
+      title: 'Opening Mendeley',
+      description: 'If Mendeley is installed, it should open now',
+    });
+  };
+
   const handleClose = () => {
     setCitingArticleTitle('');
+    setCitationFormat('APA');
     setShowCitationCard(false);
     onOpenChange(false);
   };
@@ -123,6 +178,20 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="citation-format">Citation Format</Label>
+              <Select value={citationFormat} onValueChange={(value) => setCitationFormat(value as CitationFormat)}>
+                <SelectTrigger id="citation-format">
+                  <SelectValue placeholder="Select citation format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="APA">APA</SelectItem>
+                  <SelectItem value="Harvard">Harvard</SelectItem>
+                  <SelectItem value="ISO 690">ISO 690</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="rounded-lg bg-secondary p-4 space-y-2">
               <p className="text-sm font-medium">Article being cited:</p>
               <p className="text-sm text-muted-foreground">{article.title}</p>
@@ -140,8 +209,29 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
         ) : (
           <div className="space-y-4">
             <div className="rounded-lg border bg-card p-4 space-y-3">
-              <p className="text-sm font-medium">Your Citation:</p>
-              <p className="text-sm leading-relaxed">{formatCitation()}</p>
+              <p className="text-sm font-medium">Your Citation ({citationFormat}):</p>
+              <p className="text-sm leading-relaxed break-words">{formatCitation()}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openWithZotero}
+                className="w-full"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Open with Zotero
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openWithMendeley}
+                className="w-full"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Open with Mendeley
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -149,7 +239,16 @@ export const CitationDialog = ({ article, open, onOpenChange }: CitationDialogPr
                 className="w-full"
               >
                 <Copy className="h-4 w-4 mr-2" />
-                Copy Citation
+                Copy Info
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={copyLink}
+                className="w-full"
+              >
+                <Link className="h-4 w-4 mr-2" />
+                Copy Link
               </Button>
             </div>
 
